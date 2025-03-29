@@ -1,0 +1,103 @@
+# Flutter/Dart specific files
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.flutter-versions
+.pub-cache/
+.pub/
+build/
+*.lock
+pubspec.lock
+
+# Android specific
+android/.gradle/
+android/app/google-services.json  # Firebase config
+android/local.properties
+android/*.iml
+android/gradlew
+android/gradlew.bat
+android/gradle/
+android/captures/
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# iOS specific
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Flutter.podspec
+ios/Runner.xcworkspace/
+ios/.dart_tool/
+ios/build/
+ios/Runner.xcodeproj/project.xcworkspace/
+ios/Runner.xcodeproj/xcuserdata/
+ios/*.mode1v3
+ios/*.mode2v3
+ios/*.moved-aside
+ios/*.pbxuser
+ios/*.perspectivev3
+ios/*.xccheckout
+ios/*.xcscmblueprint
+
+# IDE specific
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.settings/
+
+# macOS specific
+.DS_Store
+macos/Flutter/ephemeral/
+macos/.symlinks/
+macos/.dart_tool/
+xcuserdata/
+
+# Windows specific
+windows/Flutter/ephemeral/
+windows/.dart_tool/
+windows/.symlinks/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Linux specific
+linux/Flutter/ephemeral/
+linux/.dart_tool/
+linux/.symlinks/
+
+# Web specific
+web/.dart_tool/
+web/build/
+
+# Firebase
+firebase-debug.log
+.firebase/
+.firebaserc
+
+# Coverage reports
+coverage/
+.test_coverage.dart
+*.lcov
+
+# Environment files
+.env*
+*.env
+.env.local
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+*.config.dart
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+.history/
