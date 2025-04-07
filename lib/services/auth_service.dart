@@ -1,8 +1,9 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/profile.dart';
 import './app_check_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthResponse {
   final bool success;
@@ -19,105 +20,94 @@ class AuthResponse {
 }
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final String _baseUrl = 'http://localhost:3300'; // Your Node.js server URL
+  final auth.FirebaseAuth _auth = auth.FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String _baseUrl = 'http://localhost:3300'; 
   final AppCheckService _appCheckService = AppCheckService();
 
   // Sign in with email and password
-  Future<UserCredential?> signIn(String email, String password) async {
+  Future<AuthResponse> signIn(String email, String password) async {
     try {
-      // Firebase Authentication
       final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // Get Firebase ID token
-      final idToken = await userCredential.user?.getIdToken();
+      // Get user profile from Firestore
+      final profileDoc = await _firestore
+          .collection('profiles')
+          .doc(userCredential.user!.uid)
+          .get();
 
-      // Call your backend API
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/v1/login'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $idToken',
-        },
-        body: json.encode({
-          'email': email,
-          'password': password,
-          // Add any additional data your API needs
-        }),
-      );
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to authenticate with backend');
+      if (!profileDoc.exists) {
+        throw Exception('Profile not found');
       }
 
-      return userCredential;
+      return AuthResponse(
+        success: true,
+        message: 'Login successful',
+        status: 200,
+        data: {
+          'uid': userCredential.user!.uid,
+          'email': email,
+          'profile': profileDoc.data(),
+        },
+      );
     } catch (e) {
-      print('Error during sign in: $e');
-      rethrow;
+      return AuthResponse(
+        success: false,
+        message: e.toString(),
+        status: 500,
+      );
     }
   }
 
   Future<AuthResponse> register(Profile profile, String password) async {
     try {
-      // Get valid App Check token
-      final appCheckToken = await _appCheckService.getValidToken();
-      if (appCheckToken == null) {
-        return AuthResponse(
-          success: false,
-          message: 'Failed to verify app authenticity',
-          status: 400,
-        );
-      }
-
-      // Create the user with Firebase Authentication
+      // Create Firebase user
       final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: profile.email,
+        email: profile.user.authInfo.email,
         password: password,
       );
 
-      // Get the token
-      final token = await userCredential.user?.getIdToken();
-      final uid = userCredential.user?.uid;
-
-      // Prepare the registration data
-      final registrationData = {
-        ...profile.toJson(),
-        'password': password,
-      };
-
-      // Call your backend API with both tokens
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/register'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-          'X-Firebase-AppCheck': appCheckToken,
-        },
-        body: json.encode(registrationData),
+      // Update profile with the new UID
+      final updatedProfile = Profile(
+        accountStatus: profile.accountStatus,
+        lastUpdated: profile.lastUpdated,
+        preferences: profile.preferences,
+        user: User(
+          authInfo: AuthInfo(
+            createdAt: profile.user.authInfo.createdAt,
+            email: profile.user.authInfo.email,
+            lastLogin: profile.user.authInfo.lastLogin,
+            phone: profile.user.authInfo.phone,
+            secureLogin: profile.user.authInfo.secureLogin,
+            uid: userCredential.user!.uid,
+            username: profile.user.authInfo.username,
+          ),
+          bio: profile.user.bio,
+          image: profile.user.image,
+          isAgreed: profile.user.isAgreed,
+          location: profile.user.location,
+          socialLinks: profile.user.socialLinks,
+          website: profile.user.website,
+        ),
+        verified: profile.verified,
       );
 
-      final responseData = json.decode(response.body);
-
-      if (response.statusCode != 200) {
-        // If backend registration fails, delete the Firebase user
-        await userCredential.user?.delete();
-        return AuthResponse(
-          success: false,
-          message: responseData['message'] ?? 'Registration failed',
-          status: response.statusCode,
-        );
-      }
+      // Save profile to Firestore
+      await _firestore
+          .collection('profiles')
+          .doc(userCredential.user!.uid)
+          .set(updatedProfile.toJson());
 
       return AuthResponse(
         success: true,
         message: 'Registration successful',
         status: 200,
         data: {
-          'token': token,
-          'uid': uid,
+          'uid': userCredential.user!.uid,
+          'email': profile.user.authInfo.email,
         },
       );
     } catch (e) {
@@ -132,5 +122,24 @@ class AuthService {
   // Sign out
   Future<void> signOut() async {
     await _auth.signOut();
+  }
+
+  // Get current user profile
+  Future<Profile?> getCurrentProfile() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return null;
+
+      final doc = await _firestore
+          .collection('profiles')
+          .doc(user.uid)
+          .get();
+
+      if (!doc.exists) return null;
+      return Profile.fromJson(doc.data()!);
+    } catch (e) {
+      print('Error getting profile: $e');
+      return null;
+    }
   }
 } 

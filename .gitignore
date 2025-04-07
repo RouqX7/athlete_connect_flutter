@@ -101,3 +101,6 @@ coverage/
 *.tmp
 *.temp
 .history/
+.qodo
+
+google-services.json

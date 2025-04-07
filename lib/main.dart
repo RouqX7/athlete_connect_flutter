@@ -5,21 +5,34 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import './services/app_check_service.dart';
 import 'dart:io';
-import './config/firebase_secrets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:path_provider/path_provider.dart';
 import './config/firebase_config.dart';
+import 'screens/profile_screen.dart';
+import './utils/setup_firebase.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Load environment variables
-  await dotenv.load();
-
-  // Setup Firebase config before initialization
-  await FirebaseConfig.setupFirebaseConfig();
+  // First, setup the google-services.json file
+  await setupGoogleServices();
   
-  await Firebase.initializeApp();
+  // Initialize environment variables
+  await FirebaseConfig.initialize();
+  
+  // Initialize Firebase
+  final options = FirebaseConfig.getFirebaseOptions();
+  await Firebase.initializeApp(
+    options: FirebaseOptions(
+      apiKey: options['apiKey']!,
+      appId: options['appId']!,
+      messagingSenderId: options['messagingSenderId']!,
+      projectId: options['projectId']!,
+      storageBucket: options['storageBucket']!,
+      databaseURL: options['databaseURL'],
+    ),
+  );
+
   
   // Initialize Firebase App Check with Play Integrity
   await FirebaseAppCheck.instance.activate(
@@ -41,6 +54,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => LoginScreen(),
         '/register': (context) => RegisterScreen(),
+        '/profile': (context) => ProfileScreen(),
       },
       theme: ThemeData(
         primarySwatch: Colors.blue,

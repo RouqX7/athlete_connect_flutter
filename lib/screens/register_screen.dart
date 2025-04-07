@@ -25,31 +25,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _handleRegister() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-      
-      if (!_isAgreed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please agree to the terms and conditions')),
-        );
-        return;
-      }
-
       setState(() => _isLoading = true);
 
       try {
+        final now = DateTime.now();
         final profile = Profile(
-          email: _email,
-          firstName: _firstName,
-          lastName: _lastName,
-          username: _username,
-          phone: _phone,
-          image: _image,
-          isAgreed: _isAgreed,
+          accountStatus: 'inactive',
+          lastUpdated: now,
+          preferences: Preferences(
+            notifications: Notifications(
+              email: true,
+              push: true,
+              sms: true,
+            ),
+            theme: 'light',
+          ),
+          user: User(
+            authInfo: AuthInfo(
+              createdAt: now,
+              email: _email,
+              lastLogin: now,
+              secureLogin: true,
+              uid: '', // This will be set after Firebase creates the user
+              username: _username,
+            ),
+            isAgreed: _isAgreed,
+            socialLinks: {},
+          ),
+          verified: false,
         );
 
         final result = await _authService.register(profile, _password);
-        
         if (result.success) {
-          // Navigate to home screen or verification screen
           Navigator.pushReplacementNamed(context, '/home');
         } else {
           throw Exception(result.message);
