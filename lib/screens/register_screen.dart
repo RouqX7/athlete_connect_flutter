@@ -1,71 +1,49 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import '../models/profile.dart';
 
 class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
   @override
-  _RegisterScreenState createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
-  bool _isAgreed = false;
 
-  // Form fields
-  String _email = '';
-  String _password = '';
-  String _firstName = '';
-  String _lastName = '';
-  String _username = '';
-  String _phone = '';
-  String _image = ''; // You might want to add image upload functionality
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  Future<void> _handleRegister() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
-      setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-      try {
-        final now = DateTime.now();
-        final profile = Profile(
-          accountStatus: 'inactive',
-          lastUpdated: now,
-          preferences: Preferences(
-            notifications: Notifications(
-              email: true,
-              push: true,
-              sms: true,
-            ),
-            theme: 'light',
-          ),
-          user: User(
-            authInfo: AuthInfo(
-              createdAt: now,
-              email: _email,
-              lastLogin: now,
-              secureLogin: true,
-              uid: '', // This will be set after Firebase creates the user
-              username: _username,
-            ),
-            isAgreed: _isAgreed,
-            socialLinks: {},
-          ),
-          verified: false,
-        );
+    try {
+      final response = await _authService.register(
+        _nameController.text,
+        _emailController.text,
+        _passwordController.text,
+      );
 
-        final result = await _authService.register(profile, _password);
-        if (result.success) {
-          Navigator.pushReplacementNamed(context, '/home');
-        } else {
-          throw Exception(result.message);
-        }
-      } catch (e) {
+      if (!mounted) return;
+
+      if (response.success) {
+        // Show success message and navigate to login
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          const SnackBar(content: Text('Registration successful! Please login.')),
         );
-      } finally {
+        Navigator.pushReplacementNamed(context, '/login');
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response.message)),
+        );
+      }
+    } finally {
+      if (mounted) {
         setState(() => _isLoading = false);
       }
     }
@@ -74,102 +52,67 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Register')),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
+      appBar: AppBar(title: const Text('Register')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'First Name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                onSaved: (value) => _firstName = value ?? '',
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: 'Name'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your name';
+                  }
+                  return null;
+                },
               ),
-              SizedBox(height: 16),
-              
+              const SizedBox(height: 16),
               TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Last Name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                onSaved: (value) => _lastName = value ?? '',
-              ),
-              SizedBox(height: 16),
-
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Username',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                onSaved: (value) => _username = value ?? '',
-              ),
-              SizedBox(height: 16),
-
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
+                controller: _emailController,
+                decoration: const InputDecoration(labelText: 'Email'),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  if (value?.isEmpty ?? true) return 'Required';
-                  if (!value!.contains('@')) return 'Invalid email';
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  if (!value.contains('@')) {
+                    return 'Please enter a valid email';
+                  }
                   return null;
                 },
-                onSaved: (value) => _email = value ?? '',
               ),
-              SizedBox(height: 16),
-
+              const SizedBox(height: 16),
               TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
+                controller: _passwordController,
+                decoration: const InputDecoration(labelText: 'Password'),
                 obscureText: true,
                 validator: (value) {
-                  if (value?.isEmpty ?? true) return 'Required';
-                  if (value!.length < 6) return 'Password too short';
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a password';
+                  }
+                  if (value.length < 6) {
+                    return 'Password must be at least 6 characters';
+                  }
                   return null;
                 },
-                onSaved: (value) => _password = value ?? '',
               ),
-              SizedBox(height: 16),
-
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Phone',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-                onSaved: (value) => _phone = value ?? '',
-              ),
-              SizedBox(height: 16),
-
-              CheckboxListTile(
-                title: Text('I agree to the terms and conditions'),
-                value: _isAgreed,
-                onChanged: (value) {
-                  setState(() => _isAgreed = value ?? false);
-                },
-              ),
-              SizedBox(height: 24),
-
+              const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: _isLoading ? null : _handleRegister,
+                onPressed: _isLoading ? null : _register,
                 child: _isLoading
-                    ? CircularProgressIndicator(color: Colors.white)
-                    : Text('Register'),
+                    ? const CircularProgressIndicator()
+                    : const Text('Register'),
               ),
-              
+              const SizedBox(height: 16),
               TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Already have an account? Login'),
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, '/login');
+                },
+                child: const Text('Already have an account? Login'),
               ),
             ],
           ),
@@ -177,4 +120,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-} 
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+}

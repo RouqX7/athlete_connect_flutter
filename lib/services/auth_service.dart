@@ -1,9 +1,6 @@
-import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../models/profile.dart';
-import './app_check_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthResponse {
   final bool success;
@@ -17,42 +14,60 @@ class AuthResponse {
     required this.status,
     this.data,
   });
+
+  factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    return AuthResponse(
+      success: json['success'] ?? false,
+      message: json['message'] ?? 'Unknown error',
+      status: json['status'] ?? 500,
+      data: json['data'],
+    );
+  }
 }
 
 class AuthService {
-  final auth.FirebaseAuth _auth = auth.FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _baseUrl = 'http://localhost:3300'; 
-  final AppCheckService _appCheckService = AppCheckService();
+  final _prefs = SharedPreferences.getInstance();
+
+  Map<String, String> get _headers => {
+        'Content-Type': 'application/json',
+      };
+
+  Future<String?> _getToken() async {
+    final prefs = await _prefs;
+    return prefs.getString('token');
+  }
+
+  Future<void> _saveToken(String token) async {
+    final prefs = await _prefs;
+    await prefs.setString('token', token);
+  }
+
+  Future<void> _clearToken() async {
+    final prefs = await _prefs;
+    await prefs.remove('token');
+  }
 
   // Sign in with email and password
   Future<AuthResponse> signIn(String email, String password) async {
     try {
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
+      final response = await http.post(
+        Uri.parse('$_baseUrl/auth/login'),
+        headers: _headers,
+        body: json.encode({
+          'email': email,
+          'password': password,
+        }),
       );
 
-      // Get user profile from Firestore
-      final profileDoc = await _firestore
-          .collection('profiles')
-          .doc(userCredential.user!.uid)
-          .get();
+      final responseData = json.decode(response.body);
+      final authResponse = AuthResponse.fromJson(responseData);
 
-      if (!profileDoc.exists) {
-        throw Exception('Profile not found');
+      if (authResponse.success && authResponse.data?['token'] != null) {
+        await _saveToken(authResponse.data!['token']);
       }
 
-      return AuthResponse(
-        success: true,
-        message: 'Login successful',
-        status: 200,
-        data: {
-          'uid': userCredential.user!.uid,
-          'email': email,
-          'profile': profileDoc.data(),
-        },
-      );
+      return authResponse;
     } catch (e) {
       return AuthResponse(
         success: false,
@@ -62,54 +77,21 @@ class AuthService {
     }
   }
 
-  Future<AuthResponse> register(Profile profile, String password) async {
+  // Register with email and password
+  Future<AuthResponse> register(String email, String password, String name) async {
     try {
-      // Create Firebase user
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: profile.user.authInfo.email,
-        password: password,
+      final response = await http.post(
+        Uri.parse('$_baseUrl/auth/register'),
+        headers: _headers,
+        body: json.encode({
+          'email': email,
+          'password': password,
+          'name': name,
+        }),
       );
 
-      // Update profile with the new UID
-      final updatedProfile = Profile(
-        accountStatus: profile.accountStatus,
-        lastUpdated: profile.lastUpdated,
-        preferences: profile.preferences,
-        user: User(
-          authInfo: AuthInfo(
-            createdAt: profile.user.authInfo.createdAt,
-            email: profile.user.authInfo.email,
-            lastLogin: profile.user.authInfo.lastLogin,
-            phone: profile.user.authInfo.phone,
-            secureLogin: profile.user.authInfo.secureLogin,
-            uid: userCredential.user!.uid,
-            username: profile.user.authInfo.username,
-          ),
-          bio: profile.user.bio,
-          image: profile.user.image,
-          isAgreed: profile.user.isAgreed,
-          location: profile.user.location,
-          socialLinks: profile.user.socialLinks,
-          website: profile.user.website,
-        ),
-        verified: profile.verified,
-      );
-
-      // Save profile to Firestore
-      await _firestore
-          .collection('profiles')
-          .doc(userCredential.user!.uid)
-          .set(updatedProfile.toJson());
-
-      return AuthResponse(
-        success: true,
-        message: 'Registration successful',
-        status: 200,
-        data: {
-          'uid': userCredential.user!.uid,
-          'email': profile.user.authInfo.email,
-        },
-      );
+      final responseData = json.decode(response.body);
+      return AuthResponse.fromJson(responseData);
     } catch (e) {
       return AuthResponse(
         success: false,
@@ -121,25 +103,28 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _clearToken();
   }
 
   // Get current user profile
-  Future<Profile?> getCurrentProfile() async {
+  Future<AuthResponse> getCurrentProfile() async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) return null;
-
-      final doc = await _firestore
-          .collection('profiles')
-          .doc(user.uid)
-          .get();
-
-      if (!doc.exists) return null;
-      return Profile.fromJson(doc.data()!);
+      final response = await http.get(Uri.parse('$_baseUrl/auth/profile'), headers: _headers);
+      final responseData = json.decode(response.body);
+      return AuthResponse.fromJson(responseData);
     } catch (e) {
       print('Error getting profile: $e');
-      return null;
+      return AuthResponse(
+        success: false,
+        message: e.toString(),
+        status: 500,
+      );
     }
   }
-} 
+
+  // Check if user is authenticated
+  Future<bool> isAuthenticated() async {
+    final token = await _getToken();
+    return token != null;
+  }
+}

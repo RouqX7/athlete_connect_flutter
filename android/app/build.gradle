@@ -23,13 +23,12 @@ if (flutterVersionName == null) {
 
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
-apply plugin: 'com.google.gms.google-services'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 dependencies {
-    implementation platform('com.google.firebase:firebase-bom:32.7.0')
-    implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.android.support:multidex:1.0.3'
+    implementation 'com.google.android.gms:play-services-auth:21.3.0' // For Google sign-in, etc.
+    implementation 'com.google.android.gms:play-services-base:18.6.0'
 }
 
 android {
@@ -52,7 +51,7 @@ android {
 
     defaultConfig {
         applicationId "com.rouq.athleteconnect"
-        minSdkVersion 21
+        minSdkVersion 23
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
@@ -69,3 +68,6 @@ android {
 flutter {
     source "../.."
 }
+
+// Move the google-services plugin to the bottom
+apply plugin: 'com.google.gms.google-services'
