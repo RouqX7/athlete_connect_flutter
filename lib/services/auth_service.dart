@@ -26,7 +26,7 @@ class AuthResponse {
 }
 
 class AuthService {
-  final String _baseUrl = 'http://localhost:3300'; 
+  final String _baseUrl = 'http://10.0.2.2:3300'; 
   final _prefs = SharedPreferences.getInstance();
 
   Map<String, String> get _headers => {
@@ -50,43 +50,42 @@ class AuthService {
 
   // Sign in with email and password
   Future<AuthResponse> signIn(String email, String password) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/auth/login'),
-        headers: _headers,
-        body: json.encode({
-          'email': email,
-          'password': password,
-        }),
-      );
+  try {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/v1/login'),
+      headers: _headers,
+      body: json.encode({
+        'email': email,
+        'password': password,
+      }),
+    );
 
-      final responseData = json.decode(response.body);
-      final authResponse = AuthResponse.fromJson(responseData);
+    final responseData = json.decode(response.body);
+    final authResponse = AuthResponse.fromJson(responseData);
 
-      if (authResponse.success && authResponse.data?['token'] != null) {
-        await _saveToken(authResponse.data!['token']);
-      }
-
-      return authResponse;
-    } catch (e) {
-      return AuthResponse(
-        success: false,
-        message: e.toString(),
-        status: 500,
-      );
+    if (authResponse.success && authResponse.data?['token'] != null) {
+      await _saveToken(authResponse.data!['token']);
     }
+
+    return authResponse;
+  } catch (e) {
+    return AuthResponse(
+      success: false,
+      message: e.toString(),
+      status: 500,
+    );
   }
+}
 
   // Register with email and password
-  Future<AuthResponse> register(String email, String password, String name) async {
+  Future<AuthResponse> register(String email, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/auth/register'),
+        Uri.parse('$_baseUrl/api/v1/register'),
         headers: _headers,
         body: json.encode({
           'email': email,
           'password': password,
-          'name': name,
         }),
       );
 
