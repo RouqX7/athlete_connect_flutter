@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/home_screen.dart';
+import '../screens/profile_screen.dart';
 import '../settings/settings_controller.dart';
 
 /// The Widget that configures your application.
@@ -35,6 +36,7 @@ class AthleteConnectApp extends StatelessWidget {
             '/login': (context) => const LoginScreen(),
             '/register': (context) => const RegisterScreen(),
             '/home': (context) => const HomeScreen(),
+            '/profile': (context) => const ProfileScreen(),
           },
         );
       },

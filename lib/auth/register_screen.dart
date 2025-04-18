@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import '../models/profile.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -29,31 +28,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       try {
         final now = DateTime.now();
-        final profile = Profile(
-          accountStatus: 'inactive',
-          lastUpdated: now,
-          preferences: Preferences(
-            notifications: Notifications(
-              email: true,
-              push: true,
-              sms: true,
-            ),
-            theme: 'light',
-          ),
-          user: User(
-            authInfo: AuthInfo(
-              createdAt: now,
-              email: _email,
-              lastLogin: now,
-              secureLogin: true,
-              uid: '', // This will be set after Firebase creates the user
-              username: _username,
-            ),
-            isAgreed: _isAgreed,
-            socialLinks: {},
-          ),
-          verified: false,
-        );
+        final profile = {
+          'accountStatus': 'inactive',
+          'lastUpdated': now,
+          'preferences': {
+            'notifications': {
+              'email': true,
+              'push': true,
+              'sms': true,
+            },
+            'theme': 'light',
+          },
+          'user': {
+            'authInfo': {
+              'createdAt': now,
+              'email': _email,
+              'lastLogin': now,
+              'secureLogin': true,
+              'uid': '', // This will be set after Firebase creates the user
+              'username': _username,
+            },
+            'isAgreed': _isAgreed,
+            'socialLinks': {},
+          },
+          'verified': false,
+        };
+
+        final result = await _authService.register(profile, _password);
+        if (result.success) {
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          throw Exception(result.message);
+        }
 
         final result = await _authService.register(profile, _password);
         if (result.success) {

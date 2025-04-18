@@ -26,6 +26,13 @@ class AuthResponse {
 }
 
 class AuthService {
+  static final AuthService instance = AuthService._internal();
+  AuthService._internal();
+
+  String? currentUserId;
+
+  static String? get currentUid => instance.currentUserId;
+
   final String _baseUrl = 'http://10.0.2.2:3300'; 
   final _prefs = SharedPreferences.getInstance();
 
@@ -49,6 +56,7 @@ class AuthService {
   }
 
   // Sign in with email and password
+  // After successful login, set currentUserId
   Future<AuthResponse> signIn(String email, String password) async {
   try {
     final response = await http.post(
@@ -65,6 +73,10 @@ class AuthService {
 
     if (authResponse.success && authResponse.data?['token'] != null) {
       await _saveToken(authResponse.data!['token']);
+      // Save UID if returned from backend
+      if (authResponse.data?['uid'] != null) {
+        AuthService.instance.currentUserId = authResponse.data!['uid'];
+      }
     }
 
     return authResponse;
@@ -78,7 +90,7 @@ class AuthService {
 }
 
   // Register with email and password
-  Future<AuthResponse> register(String email, String password) async {
+  Future<AuthResponse> register(String email, String password, String username) async {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/api/v1/register'),
@@ -86,6 +98,7 @@ class AuthService {
         body: json.encode({
           'email': email,
           'password': password,
+          'username': username
         }),
       );
 
